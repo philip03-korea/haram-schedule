@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>하람 주간 계획표</title>
+<style>
+:root {
+  --blue:     #3b82f6;
+  --c-school: #bfdbfe;
+  --c-arrive: #dbeafe;
+  --c-rest:   #e0e7ff;
+  --c-eng:    #fef9c3;
+  --c-kor:    #fed7aa;
+  --c-math:   #d1fae5;
+  --c-exe:    #a7f3d0;
+  --c-game:   #fce7f3;
+  --c-meal:   #ffedd5;
+  --c-church: #f3e8ff;
+  --c-slprep: #e2e8f0;
+  --c-sleep:  #cbd5e1;
+  --c-tbd:    #f1f5f9;
+  --c-empty:  #ffffff;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  background: #f1f5f9; padding: 10px; color: #1e293b; font-size: 13px;
+  padding-bottom: 24px;
+}
+
+/* ── 헤더 ── */
+.hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--blue); color: #fff;
+  border-radius: 10px 10px 0 0; padding: 9px 12px; gap: 8px;
+}
+.hdr h1 { font-size: 0.88rem; font-weight: 800; flex-shrink: 0; }
+.hdr .acts { display: flex; gap: 5px; flex-wrap: wrap; }
+.btn {
+  padding: 5px 10px; border: none; border-radius: 6px;
+  font-size: 0.71rem; font-weight: 700; cursor: pointer;
+  white-space: nowrap;
+}
+.btn:disabled { opacity: 0.4; cursor: default; }
+.btn-undo   { background: rgba(255,255,255,0.18); color: #fff; }
+.btn-manual { background: rgba(255,255,255,0.18); color: #fff; transition: background 0.2s; }
+.btn-manual.active { background: #fbbf24; color: #1e293b; }
+.btn-save   { background: #fff; color: var(--blue); }
+
+/* ── 범례 ── */
+.legend {
+  background: #fff; border: 1px solid #e2e8f0; border-top: none;
+  padding: 6px 10px; display: flex; flex-wrap: wrap; gap: 7px;
+}
+.legend span { display: flex; align-items: center; gap: 3px; font-size: 0.66rem; color: #475569; }
+.legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+/* ── 테이블 ── */
+.tbl-wrap {
+  overflow-x: auto; background: #fff;
+  border: 1px solid #e2e8f0; border-top: none;
+  border-radius: 0 0 10px 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+}
+table { border-collapse: collapse; width: 100%; min-width: 520px; }
+thead th {
+  background: #1e40af; color: #fff;
+  padding: 7px 3px; text-align: center; font-size: 0.78rem; font-weight: 700;
+  border: 1px solid #2563eb;
+  position: sticky; top: 0; z-index: 2;
+}
+thead th:first-child { background: #172554; width: 46px; }
+thead th.sat { background: #2563eb; }
+thead th.sun { background: #7c3aed; }
+td { border: 1px solid #e2e8f0; padding: 0; vertical-align: middle; min-width: 62px; }
+td.tc { background: #f8fafc; color: #64748b; font-weight: 700; font-size: 0.68rem; width: 46px; min-width: 46px; text-align: center; white-space: nowrap; }
+td.tc-r { position: sticky; right: 0; background: #e8edf5; color: #475569; font-weight: 800; box-shadow: -2px 0 6px rgba(0,0,0,0.08); z-index: 1; }
+
+/* ── 셀 ── */
+.cell {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 3px 2px; min-height: 34px; cursor: pointer;
+  transition: filter 0.12s;
+  user-select: none; position: relative;
+}
+.cell:hover { filter: brightness(0.91); }
+.cell .em  { font-size: 0.95rem; }
+.cell .lb  { font-size: 0.68rem; font-weight: 700; line-height: 1.2; text-align: center; }
+.cell .dur { font-size: 0.6rem; color: #64748b; margin-top: 1px; }
+
+/* 빈 칸 */
+.cell.bg-empty {
+  border: 1.5px dashed #d1d5db;
+}
+.cell.bg-empty::after {
+  content: '+'; font-size: 0.85rem; color: #cbd5e1;
+  transition: color 0.15s;
+}
+.cell.bg-empty:hover { border-color: var(--blue); background: #eff6ff !important; }
+.cell.bg-empty:hover::after { color: var(--blue); }
+
+/* 미정 셀 */
+.cell.bg-tbd { border: 1.5px dashed #cbd5e1; }
+.cell.bg-tbd:hover { border-color: var(--blue); background: #eff6ff !important; }
+
+/* 수동 모드 */
+.manual-mode .cell { outline: 1px dashed rgba(59,130,246,0.2); }
+.manual-mode .cell:hover { outline: 2px solid var(--blue); z-index: 1; }
+
+/* ── 배경 ── */
+.bg-school { background: var(--c-school); }
+.bg-arrive { background: var(--c-arrive); }
+.bg-rest   { background: var(--c-rest); }
+.bg-eng    { background: var(--c-eng); }
+.bg-kor    { background: var(--c-kor); }
+.bg-math   { background: var(--c-math); }
+.bg-exe    { background: var(--c-exe); }
+.bg-game   { background: var(--c-game); }
+.bg-meal   { background: var(--c-meal); }
+.bg-church { background: var(--c-church); }
+.bg-slprep { background: var(--c-slprep); }
+.bg-sleep  { background: var(--c-sleep); }
+.bg-tbd    { background: var(--c-tbd); }
+.bg-empty  { background: var(--c-empty); }
+
+.btn-row {
+  width: 100%; padding: 7px; background: #e0f2fe; color: #0369a1;
+  border: none; border-radius: 0 0 10px 10px; font-size: 0.77rem;
+  font-weight: 700; cursor: pointer;
+}
+.btn-row:hover { background: #bae6fd; }
+.hint { text-align: center; font-size: 0.65rem; color: #94a3b8; margin-top: 5px; }
+
+/* ── 메모 ── */
+.memo { margin-top: 10px; background: #fff; border-radius: 10px; border: 1px solid #e2e8f0; padding: 10px 12px; }
+.memo h2 { font-size: 0.8rem; font-weight: 700; color: var(--blue); margin-bottom: 6px; }
+.memo textarea { width: 100%; min-height: 60px; border: 1px solid #e2e8f0; border-radius: 6px; padding: 7px; font-size: 0.75rem; font-family: inherit; resize: vertical; outline: none; }
+.memo textarea:focus { border-color: var(--blue); }
+
+/* ── 오버레이 ── */
+#overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.4); z-index: 100;
+}
+#overlay.show { display: block; }
+
+/* ── 패널 ── */
+#panel {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: #fff; border-radius: 18px 18px 0 0;
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.18);
+  z-index: 101; padding: 10px 14px 30px;
+  transform: translateY(100%);
+  transition: transform 0.28s cubic-bezier(.4,0,.2,1);
+  max-height: 90vh; overflow-y: auto;
+}
+#panel.open { transform: translateY(0); }
+
+.p-handle {
+  width: 36px; height: 4px; background: #e2e8f0; border-radius: 2px;
+  margin: 0 auto 12px;
+}
+
+.p-hdr {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.p-meta { display: flex; flex-direction: column; gap: 2px; }
+.p-day  { font-size: 0.7rem; color: #64748b; font-weight: 600; }
+.p-time { font-size: 0.88rem; font-weight: 800; color: #1e293b; }
+.p-cur  { font-size: 0.73rem; color: #475569; margin-top: 1px; }
+.p-close {
+  background: #f1f5f9; border: none; border-radius: 8px;
+  padding: 5px 9px; cursor: pointer; font-size: 0.78rem; color: #475569;
+}
+
+.s-title {
+  font-size: 0.68rem; font-weight: 700; color: #94a3b8;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  margin: 12px 0 7px; padding-top: 10px;
+  border-top: 1px solid #f1f5f9;
+}
+
+/* 타입 그리드 */
+#typeGrid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px;
+}
+.tg-btn {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 6px 3px; border: 2px solid transparent; border-radius: 8px;
+  cursor: pointer; font-size: 0.62rem; font-weight: 700; color: #374151;
+  gap: 2px; transition: border-color 0.12s, transform 0.1s;
+}
+.tg-btn .t-em { font-size: 1.05rem; }
+.tg-btn:hover { transform: scale(1.07); }
+.tg-btn.active { border-color: var(--blue) !important; box-shadow: 0 0 0 1px var(--blue); }
+
+/* 커스텀 텍스트 */
+.txt-row { display: flex; gap: 6px; align-items: center; }
+.txt-row input {
+  flex: 1; padding: 7px 9px; border: 1.5px solid #e2e8f0; border-radius: 8px;
+  font-size: 0.8rem; font-family: inherit; outline: none; min-width: 0;
+}
+.txt-row input:focus { border-color: var(--blue); }
+.txt-row .apply-btn {
+  padding: 7px 11px; background: var(--blue); color: #fff;
+  border: none; border-radius: 8px; font-size: 0.73rem; font-weight: 700; cursor: pointer;
+  white-space: nowrap; flex-shrink: 0;
+}
+
+/* 아이콘 피커 */
+#iconPicker {
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px;
+}
+.ic-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 5px 3px; gap: 2px;
+  border-radius: 7px; border: 1.5px solid #e2e8f0;
+  cursor: pointer; background: #f8fafc;
+  transition: border-color 0.1s, transform 0.1s;
+}
+.ic-btn .ic-em  { font-size: 1.15rem; line-height: 1; }
+.ic-btn .ic-lb  { font-size: 0.55rem; color: #64748b; font-weight: 600; text-align: center; line-height: 1.2; }
+.ic-btn:hover { border-color: var(--blue); transform: scale(1.06); background: #eff6ff; }
+.ic-btn.active { border-color: var(--blue); background: #dbeafe; }
+
+/* ── 슬롯 목록 ── */
+#slotList { display: flex; flex-direction: column; gap: 6px; }
+.slot-row {
+  background: #f8fafc; border-radius: 8px; padding: 7px 8px;
+  border: 1px solid #e2e8f0;
+}
+.slot-top { display: flex; align-items: center; gap: 5px; margin-bottom: 5px; flex-wrap: wrap; }
+.slot-time { font-size: 0.7rem; font-weight: 700; color: #475569; min-width: 36px; flex-shrink: 0; }
+
+.slot-icon-btn {
+  font-size: 1rem; cursor: pointer; width: 30px; height: 30px; flex-shrink: 0;
+  border-radius: 6px; border: 1.5px solid #e2e8f0; background: #fff;
+  display: flex; align-items: center; justify-content: center;
+}
+.slot-icon-btn:hover { border-color: var(--blue); }
+.slot-icon-empty { font-size: 0.75rem; color: #cbd5e1; }
+
+.slot-badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 7px; border-radius: 10px; font-size: 0.65rem; font-weight: 700;
+  color: #374151; border: 1px solid rgba(0,0,0,0.08); flex-shrink: 0;
+}
+.slot-txt {
+  flex: 1; min-width: 80px; padding: 5px 7px; border: 1.5px solid #e2e8f0; border-radius: 6px;
+  font-size: 0.72rem; font-family: inherit; outline: none;
+}
+.slot-txt:focus { border-color: var(--blue); }
+
+.slot-btns { display: flex; flex-wrap: wrap; gap: 3px; }
+.sb {
+  width: 26px; height: 26px; border-radius: 5px;
+  border: 1.5px solid transparent; cursor: pointer;
+  font-size: 0.82rem; display: flex; align-items: center; justify-content: center;
+  transition: transform 0.1s;
+}
+.sb:hover { transform: scale(1.2); }
+.sb.active { border-color: #1e40af !important; box-shadow: 0 0 0 1px #1e40af; }
+
+/* 이모지 팝오버 */
+.emoji-popover {
+  position: fixed; background: #fff; border: 1px solid #e2e8f0;
+  border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+  padding: 8px; z-index: 300;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; width: 240px;
+}
+.emoji-popover .ep-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 4px 2px; gap: 1px;
+  cursor: pointer; border-radius: 5px; border: none; background: #f8fafc;
+}
+.emoji-popover .ep-btn .ep-em  { font-size: 1rem; line-height: 1; }
+.emoji-popover .ep-btn .ep-lb  { font-size: 0.5rem; color: #64748b; font-weight: 600; text-align: center; }
+.emoji-popover .ep-btn:hover { background: #dbeafe; }
+
+/* 수동편집 취소 버튼 */
+.btn-cancel { background: #fee2e2; color: #dc2626; display: none; }
+</style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<div class="hdr">
+  <h1>🗓️ 하람 주간 계획표</h1>
+  <div class="acts">
+    <button class="btn btn-undo" id="btnUndo" onclick="undo()" disabled>⟵ 되돌리기</button>
+    <button class="btn btn-manual" id="btnManual" onclick="toggleManual()">수동 편집 🔓</button>
+    <button class="btn btn-cancel" id="btnCancel" onclick="cancelManual()">✕ 취소</button>
+    <button class="btn btn-save" onclick="saveHtml()">💾 저장</button>
+  </div>
+</div>
+
+<!-- 범례 -->
+<div class="legend">
+  <span><i style="background:var(--c-school)"></i>학교</span>
+  <span><i style="background:var(--c-arrive)"></i>집도착</span>
+  <span><i style="background:var(--c-rest)"></i>쉬기</span>
+  <span><i style="background:var(--c-eng)"></i>영단</span>
+  <span><i style="background:var(--c-kor)"></i>국어</span>
+  <span><i style="background:var(--c-math)"></i>수학</span>
+  <span><i style="background:var(--c-exe)"></i>운동</span>
+  <span><i style="background:var(--c-game)"></i>게임</span>
+  <span><i style="background:var(--c-meal)"></i>밥+샤워</span>
+  <span><i style="background:var(--c-church)"></i>교회</span>
+  <span><i style="background:var(--c-slprep)"></i>잠준비</span>
+  <span><i style="background:var(--c-sleep)"></i>잠</span>
+</div>
+
+<!-- 테이블 -->
+<div class="tbl-wrap">
+  <table id="tbl">
+    <thead>
+      <tr>
+        <th>시간</th>
+        <th>월</th><th>화</th><th>수</th><th>목</th><th>금</th>
+        <th class="sat">토</th><th class="sun">일</th>
+        <th style="background:#172554;width:46px;position:sticky;right:0;z-index:3">시간</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <button class="btn-row" onclick="addRow()">＋ 시간 행 추가</button>
+</div>
+<p class="hint">블록 탭 → 편집 패널 · 수동 편집 🔓 모드에서는 빈 칸 포함 모든 30분 슬롯 개별 클릭 가능 · Ctrl+Z 되돌리기</p>
+
+<!-- 메모 -->
+<div class="memo">
+  <h2>📌 메모</h2>
+  <textarea id="memoText" placeholder="메모를 입력하세요..."></textarea>
+</div>
+
+<!-- 오버레이 & 패널 -->
+<div id="overlay" onclick="closePanel()"></div>
+<div id="panel">
+  <div class="p-handle"></div>
+  <div class="p-hdr">
+    <div class="p-meta">
+      <span class="p-day" id="pDay">월요일</span>
+      <span class="p-time" id="pTime">9:00 ~ 15:00 (6시간)</span>
+      <span class="p-cur" id="pCur">🏫 학교</span>
+    </div>
+    <button class="p-close" onclick="closePanel()">✕ 닫기</button>
+  </div>
+
+  <div class="s-title">활동 선택 (전체 블록 변경)</div>
+  <div id="typeGrid"></div>
+
+  <div class="s-title">텍스트 직접 입력 (전체 블록)</div>
+  <div class="txt-row">
+    <input type="text" id="customText" placeholder="원하는 텍스트 입력..." />
+    <button class="apply-btn" onclick="applyBlockText()">전체 적용</button>
+  </div>
+
+  <div class="s-title">아이콘 선택 (전체 블록)</div>
+  <div id="iconPicker"></div>
+
+  <div class="s-title">30분 단위 개별 수정</div>
+  <div id="slotList"></div>
+</div>
+
+<!-- 이모지 팝오버 -->
+<div id="emojiPopover" class="emoji-popover" style="display:none"></div>
+
+<!-- 저장용 -->
+<script id="schedData" type="application/json"></script>
+<script id="custData"  type="application/json"></script>
+
+<script>
+// ─────────────────────────────────────────────────
+// 타입 정의
+// ─────────────────────────────────────────────────
+const TYPES = {
+  S: { bg:'bg-school',  em:'🏫', lb:'학교' },
+  A: { bg:'bg-arrive',  em:'🏠', lb:'집도착' },
+  R: { bg:'bg-rest',    em:'😴', lb:'쉬기' },
+  E: { bg:'bg-eng',     em:'📖', lb:'영단' },
+  K: { bg:'bg-kor',     em:'✏️', lb:'국어' },
+  M: { bg:'bg-math',    em:'🧮', lb:'수학' },
+  X: { bg:'bg-exe',     em:'🏃', lb:'운동' },
+  G: { bg:'bg-game',    em:'🎮', lb:'게임' },
+  F: { bg:'bg-meal',    em:'🍚', lb:'밥+샤워' },
+  P: { bg:'bg-slprep',  em:'🌙', lb:'잠준비' },
+  Z: { bg:'bg-sleep',   em:'😴', lb:'잠' },
+  C: { bg:'bg-church',  em:'⛪', lb:'교회' },
+  D: { bg:'bg-tbd',     em:'',   lb:'미정' },
+  _: { bg:'bg-empty',   em:'',   lb:'' },
+};
+const TYPE_KEYS = ['S','A','R','E','K','M','X','G','F','P','Z','C','D','_'];
+const DAYS_KO   = ['월','화','수','목','금','토','일'];
+
+const EMOJI_LIST = [
+  {em:'🏫',lb:'학교'},   {em:'🏠',lb:'집'},     {em:'😴',lb:'쉬기'},   {em:'📖',lb:'영단'},
+  {em:'✏️',lb:'국어'},   {em:'🧮',lb:'수학'},   {em:'🏃',lb:'운동'},   {em:'🎮',lb:'게임'},
+  {em:'🍚',lb:'식사'},   {em:'⛪',lb:'교회'},   {em:'🌙',lb:'잠준비'}, {em:'💤',lb:'수면'},
+  {em:'📚',lb:'독서'},   {em:'✍️',lb:'필기'},   {em:'🎯',lb:'목표'},   {em:'🏋️',lb:'헬스'},
+  {em:'⚽',lb:'축구'},   {em:'🏀',lb:'농구'},   {em:'🎵',lb:'음악'},   {em:'📺',lb:'TV'},
+  {em:'💻',lb:'컴퓨터'},{em:'🛁',lb:'목욕'},   {em:'🚿',lb:'샤워'},   {em:'🍱',lb:'도시락'},
+  {em:'☕',lb:'카페'},   {em:'💊',lb:'약'},      {em:'🌅',lb:'기상'},   {em:'⭐',lb:'특별'},
+  {em:'🎨',lb:'미술'},   {em:'🎭',lb:'공연'},   {em:'🔬',lb:'과학'},   {em:'🎸',lb:'기타'},
+  {em:'🎹',lb:'피아노'},{em:'🏊',lb:'수영'},   {em:'🚴',lb:'자전거'}, {em:'🎤',lb:'노래'},
+  {em:'🎂',lb:'생일'},   {em:'🍕',lb:'피자'},   {em:'🍜',lb:'라면'},   {em:'🥗',lb:'샐러드'},
+  {em:'🧃',lb:'주스'},   {em:'📝',lb:'메모'},   {em:'🎁',lb:'선물'},   {em:'🎉',lb:'파티'},
+  {em:'🏆',lb:'트로피'},{em:'💪',lb:'근력'},   {em:'🧠',lb:'두뇌'},   {em:'❤️',lb:'사랑'},
+  {em:'🌈',lb:'무지개'},{em:'🔥',lb:'불꽃'},   {em:'⚡',lb:'번개'},   {em:'☀️',lb:'햇빛'},
+  {em:'🌻',lb:'해바라기'},{em:'🦋',lb:'나비'}, {em:'🖊️',lb:'펜'},    {em:'🎸',lb:'악기'},
+];
+
+// ─────────────────────────────────────────────────
+// 스케줄 데이터
+// ─────────────────────────────────────────────────
+const DEFAULT_DATA = [
+  [ '9:00', 'S','S','S','S','S','D','C'],
+  [ '9:30', 'S','S','S','S','S','D','C'],
+  ['10:00', 'S','S','S','S','S','D','C'],
+  ['10:30', 'S','S','S','S','S','D','C'],
+  ['11:00', 'S','S','S','S','S','D','C'],
+  ['11:30', 'S','S','S','S','S','D','C'],
+  ['12:00', 'S','S','S','S','S','D','C'],
+  ['12:30', 'S','S','S','S','S','D','C'],
+  ['13:00', 'S','S','S','S','S','D','C'],
+  ['13:30', 'S','S','S','S','S','D','C'],
+  ['14:00', 'S','S','S','S','S','D','G'],
+  ['14:30', 'S','S','S','S','S','D','G'],
+  ['15:00', 'A','S','A','S','A','D','G'],
+  ['15:30', 'R','A','R','A','R','D','R'],
+  ['16:00', 'E','R','E','R','E','D','R'],
+  ['16:30', 'E','E','E','E','E','D','X'],
+  ['17:00', 'K','E','K','E','K','D','X'],
+  ['17:30', 'K','K','K','K','K','D','G'],
+  ['18:00', 'M','K','M','K','M','D','G'],
+  ['18:30', 'M','M','M','M','M','D','G'],
+  ['19:00', 'X','M','X','M','X','D','F'],
+  ['19:30', 'X','X','X','X','X','D','F'],
+  ['20:00', 'G','X','G','X','G','D','P'],
+  ['20:30', 'G','G','G','G','G','D','P'],
+  ['21:00', 'R','G','R','G','R','D','Z'],
+  ['21:30', 'R','R','R','R','R','D','Z'],
+  ['22:00', 'F','R','F','R','F','D','Z'],
+  ['22:30', 'F','F','F','F','F','D','Z'],
+  ['23:00', 'P','F','P','F','P','D','Z'],
+  ['23:30', 'Z','P','Z','P','Z','D','Z'],
+  [ '0:00', 'Z','Z','Z','Z','Z','D','Z'],
+];
+
+const savedJson = document.getElementById('schedData')?.textContent?.trim();
+const DATA = (savedJson && savedJson.length > 2)
+  ? JSON.parse(savedJson)
+  : DEFAULT_DATA.map(r => [...r]);
+
+const savedCust = document.getElementById('custData')?.textContent?.trim();
+let CUST = (savedCust && savedCust.length > 2) ? JSON.parse(savedCust) : {};
+
+// ─────────────────────────────────────────────────
+// 되돌리기
+// ─────────────────────────────────────────────────
+let undoStack = [];
+
+function snapshot() {
+  undoStack.push({
+    data: DATA.map(r => [...r]),
+    cust: JSON.parse(JSON.stringify(CUST)),
+  });
+  if (undoStack.length > 40) undoStack.shift();
+  document.getElementById('btnUndo').disabled = false;
+}
+
+function undo() {
+  if (!undoStack.length) return;
+  const prev = undoStack.pop();
+  DATA.splice(0, DATA.length, ...prev.data);
+  Object.keys(CUST).forEach(k => delete CUST[k]);
+  Object.assign(CUST, prev.cust);
+  render();
+  closePanel();
+  if (!undoStack.length) document.getElementById('btnUndo').disabled = true;
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); }
+});
+
+// ─────────────────────────────────────────────────
+// 수동 편집 모드
+// ─────────────────────────────────────────────────
+let manualMode = false;
+let manualSnapshot = null; // 수동 편집 시작 전 스냅샷
+
+function toggleManual() {
+  manualMode = !manualMode;
+  const btn = document.getElementById('btnManual');
+  const cancelBtn = document.getElementById('btnCancel');
+  if (manualMode) {
+    manualSnapshot = { data: DATA.map(r=>[...r]), cust: JSON.parse(JSON.stringify(CUST)) };
+    btn.textContent = '자동 병합 🔒';
+    cancelBtn.style.display = 'inline-flex';
+  } else {
+    manualSnapshot = null;
+    btn.textContent = '수동 편집 🔓';
+    cancelBtn.style.display = 'none';
+  }
+  btn.classList.toggle('active', manualMode);
+  document.getElementById('tbl').classList.toggle('manual-mode', manualMode);
+  closePanel();
+  render();
+}
+
+function cancelManual() {
+  if (!manualSnapshot) return;
+  DATA.splice(0, DATA.length, ...manualSnapshot.data);
+  Object.keys(CUST).forEach(k => delete CUST[k]);
+  Object.assign(CUST, manualSnapshot.cust);
+  manualSnapshot = null;
+  manualMode = false;
+  document.getElementById('btnManual').textContent = '수동 편집 🔓';
+  document.getElementById('btnManual').classList.remove('active');
+  document.getElementById('btnCancel').style.display = 'none'; // cancelManual
+  document.getElementById('tbl').classList.remove('manual-mode');
+  closePanel();
+  render();
+}
+
+// ─────────────────────────────────────────────────
+// 렌더
+// ─────────────────────────────────────────────────
+function computeSpans() {
+  const nR = DATA.length, nC = 7;
+  const spans = Array.from({length:nC}, () => new Array(nR).fill(0));
+  if (manualMode) {
+    return Array.from({length:nC}, () => new Array(nR).fill(1));
+  }
+  for (let c = 0; c < nC; c++) {
+    let r = 0;
+    while (r < nR) {
+      let sp = 1;
+      while (r+sp < nR && DATA[r+sp][c+1] === DATA[r][c+1]) sp++;
+      spans[c][r] = sp;
+      r += sp;
+    }
+  }
+  return spans;
+}
+
+function ck(r, c) { return r + ',' + c; }
+
+function cellDisp(r, c) {
+  const code = DATA[r][c+1];
+  const t = TYPES[code] || TYPES['_'];
+  const k = ck(r, c);
+  return {
+    icon: (CUST[k] && CUST[k].icon !== undefined) ? CUST[k].icon : t.em,
+    text: (CUST[k] && CUST[k].text !== undefined) ? CUST[k].text : t.lb,
+    bg: t.bg, code,
+  };
+}
+
+function durText(n) {
+  const h = Math.floor(n/2), m = (n%2)*30;
+  if (h && m) return h+'시간 '+m+'분';
+  return h ? h+'시간' : m+'분';
+}
+
+function render() {
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  const spans = computeSpans();
+  const nR = DATA.length;
+
+  for (let r = 0; r < nR; r++) {
+    const tr = document.createElement('tr');
+    const tdT = document.createElement('td');
+    tdT.className = 'tc'; tdT.textContent = DATA[r][0];
+    tr.appendChild(tdT);
+
+    for (let c = 0; c < 7; c++) {
+      const sp = spans[c][r];
+      if (sp === 0) continue;
+      const td = document.createElement('td');
+      if (sp > 1) td.rowSpan = sp;
+
+      const {icon, text, bg} = cellDisp(r, c);
+      const div = document.createElement('div');
+      div.className = 'cell ' + bg;
+
+      let html = '';
+      if (icon) html += `<span class="em">${icon}</span>`;
+      if (text) html += `<span class="lb">${text}</span>`;
+      if (sp > 1 && !manualMode) html += `<span class="dur">${durText(sp)}</span>`;
+      div.innerHTML = html;
+
+      const _c = c, _r = r;
+      div.addEventListener('click', () => openPanel(_c, _r));
+      td.appendChild(div);
+      tr.appendChild(td);
+    }
+    // 오른쪽 시간 열 (sticky)
+    const tdR = document.createElement('td');
+    tdR.className = 'tc tc-r'; tdR.textContent = DATA[r][0];
+    tr.appendChild(tdR);
+
+    tbody.appendChild(tr);
+  }
+}
+
+// ─────────────────────────────────────────────────
+// 블록 탐색
+// ─────────────────────────────────────────────────
+function findBlock(col, row) {
+  if (manualMode) return {col, startRow:row, endRow:row, code:DATA[row][col+1]};
+  const code = DATA[row][col+1];
+  let s = row, e = row;
+  while (s > 0 && DATA[s-1][col+1] === code) s--;
+  while (e < DATA.length-1 && DATA[e+1][col+1] === code) e++;
+  return {col, startRow:s, endRow:e, code};
+}
+
+function nextTime(row) {
+  if (row+1 < DATA.length) return DATA[row+1][0];
+  const [h, m] = DATA[row][0].split(':').map(Number);
+  return `${(h+(m?1:0))%24}:${m?'00':'30'}`;
+}
+
+// ─────────────────────────────────────────────────
+// 패널 열기
+// ─────────────────────────────────────────────────
+let curBlock = null;
+
+function openPanel(col, row) {
+  hideEmojiPop();
+  curBlock = findBlock(col, row);
+  const {startRow, endRow, code} = curBlock;
+  const sp = endRow - startRow + 1;
+  const t = TYPES[code] || TYPES['_'];
+  const k = ck(startRow, col);
+  const icon = (CUST[k]?.icon !== undefined) ? CUST[k].icon : t.em;
+  const text = (CUST[k]?.text !== undefined) ? CUST[k].text : t.lb;
+
+  document.getElementById('pDay').textContent = DAYS_KO[col]+'요일';
+  document.getElementById('pTime').textContent =
+    DATA[startRow][0]+' ~ '+nextTime(endRow) +
+    (manualMode ? '' : '  ('+durText(sp)+')');
+  document.getElementById('pCur').textContent =
+    (icon ? icon+' ' : '') + (text || '빈 칸');
+
+  document.getElementById('customText').value = text;
+
+  buildTypeGrid(code);
+  buildIconPicker(icon);
+  buildSlotList();
+
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('panel').classList.add('open');
+  document.getElementById('panel').scrollTop = 0;
+}
+
+function closePanel() {
+  document.getElementById('panel').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+  hideEmojiPop();
+}
+
+// ─────────────────────────────────────────────────
+// 타입 그리드
+// ─────────────────────────────────────────────────
+function buildTypeGrid(activeCode) {
+  const g = document.getElementById('typeGrid');
+  g.innerHTML = '';
+  TYPE_KEYS.forEach(k => {
+    const t = TYPES[k];
+    const btn = document.createElement('button');
+    btn.className = 'tg-btn '+t.bg+(k === activeCode ? ' active' : '');
+    btn.innerHTML = `<span class="t-em">${t.em||'○'}</span><span>${t.lb||'비우기'}</span>`;
+    btn.onclick = () => changeBlock(k);
+    g.appendChild(btn);
+  });
+}
+
+// ─────────────────────────────────────────────────
+// 아이콘 피커 (전체 블록)
+// ─────────────────────────────────────────────────
+function buildIconPicker(currentIcon) {
+  const g = document.getElementById('iconPicker');
+  g.innerHTML = '';
+  EMOJI_LIST.forEach(({em, lb}) => {
+    const btn = document.createElement('button');
+    btn.className = 'ic-btn'+(em === currentIcon ? ' active' : '');
+    btn.innerHTML = `<span class="ic-em">${em}</span><span class="ic-lb">${lb}</span>`;
+    btn.title = lb;
+    btn.onclick = () => applyBlockIcon(em);
+    g.appendChild(btn);
+  });
+}
+
+// ─────────────────────────────────────────────────
+// 슬롯 목록
+// ─────────────────────────────────────────────────
+function buildSlotList() {
+  const list = document.getElementById('slotList');
+  list.innerHTML = '';
+  const {col, startRow, endRow} = curBlock;
+
+  for (let r = startRow; r <= endRow; r++) {
+    const code = DATA[r][col+1];
+    const t = TYPES[code] || TYPES['_'];
+    const k = ck(r, col);
+    const icon = (CUST[k]?.icon !== undefined) ? CUST[k].icon : t.em;
+    const text = (CUST[k]?.text !== undefined) ? CUST[k].text : t.lb;
+
+    const rowDiv = document.createElement('div');
+    rowDiv.className = 'slot-row';
+
+    // 상단: 시간 · 아이콘 · 뱃지 · 텍스트
+    const top = document.createElement('div');
+    top.className = 'slot-top';
+
+    const timeEl = document.createElement('span');
+    timeEl.className = 'slot-time';
+    timeEl.textContent = DATA[r][0];
+    top.appendChild(timeEl);
+
+    // 아이콘 버튼 → 이모지 팝오버
+    const iconBtn = document.createElement('div');
+    iconBtn.className = 'slot-icon-btn';
+    if (icon) {
+      iconBtn.textContent = icon;
+    } else {
+      iconBtn.innerHTML = '<span class="slot-icon-empty">이모지</span>';
+    }
+    iconBtn.title = '아이콘 선택';
+    const _r = r, _k = k, _col = col;
+    iconBtn.onclick = e => {
+      e.stopPropagation();
+      openEmojiPop(e.currentTarget, em => {
+        snapshot();
+        if (!CUST[_k]) CUST[_k] = {};
+        CUST[_k].icon = em;
+        render();
+        openPanel(_col, _r);
+      });
+    };
+    top.appendChild(iconBtn);
+
+    // 뱃지 (현재 타입)
+    const badge = document.createElement('span');
+    badge.className = 'slot-badge '+t.bg;
+    badge.textContent = t.lb || '빈칸';
+    top.appendChild(badge);
+
+    // 텍스트 입력
+    const txtInput = document.createElement('input');
+    txtInput.type = 'text';
+    txtInput.className = 'slot-txt';
+    txtInput.value = text;
+    txtInput.placeholder = '텍스트 입력...';
+    txtInput.addEventListener('change', () => {
+      snapshot();
+      if (!CUST[_k]) CUST[_k] = {};
+      CUST[_k].text = txtInput.value;
+      render();
+    });
+    top.appendChild(txtInput);
+
+    rowDiv.appendChild(top);
+
+    // 하단: 타입 빠른 선택
+    const btns = document.createElement('div');
+    btns.className = 'slot-btns';
+    TYPE_KEYS.forEach(tk => {
+      const tt = TYPES[tk];
+      const b = document.createElement('button');
+      b.className = 'sb '+tt.bg+(tk === code ? ' active' : '');
+      b.title = tt.lb || '비우기';
+      b.textContent = tt.em || (tk === '_' ? '○' : '—');
+      const __r = r;
+      b.onclick = () => changeSlot(__r, tk);
+      btns.appendChild(b);
+    });
+    rowDiv.appendChild(btns);
+
+    list.appendChild(rowDiv);
+  }
+}
+
+// ─────────────────────────────────────────────────
+// 이모지 팝오버 (슬롯별)
+// ─────────────────────────────────────────────────
+let _epCallback = null;
+
+function openEmojiPop(anchor, callback) {
+  const pop = document.getElementById('emojiPopover');
+  _epCallback = callback;
+  pop.innerHTML = '';
+  EMOJI_LIST.forEach(({em, lb}) => {
+    const b = document.createElement('button');
+    b.className = 'ep-btn';
+    b.innerHTML = `<span class="ep-em">${em}</span><span class="ep-lb">${lb}</span>`;
+    b.title = lb;
+    b.onclick = e => { e.stopPropagation(); hideEmojiPop(); callback(em); };
+    pop.appendChild(b);
+  });
+
+  const rect = anchor.getBoundingClientRect();
+  const winH = window.innerHeight, winW = window.innerWidth;
+  let top = rect.top - 186;
+  if (top < 56) top = rect.bottom + 6;
+  let left = Math.min(rect.left, winW - 226);
+  if (left < 6) left = 6;
+
+  pop.style.top  = top  + 'px';
+  pop.style.left = left + 'px';
+  pop.style.display = 'flex';
+
+  setTimeout(() => document.addEventListener('click', hideEmojiPop, {once:true}), 10);
+}
+
+function hideEmojiPop() {
+  document.getElementById('emojiPopover').style.display = 'none';
+  _epCallback = null;
+}
+
+// ─────────────────────────────────────────────────
+// 데이터 변경
+// ─────────────────────────────────────────────────
+function clearCust(r, c) {
+  const k = ck(r, c);
+  if (CUST[k]) delete CUST[k];
+}
+
+function changeBlock(newCode) {
+  snapshot();
+  const {col, startRow, endRow} = curBlock;
+  for (let r = startRow; r <= endRow; r++) {
+    DATA[r][col+1] = newCode;
+    clearCust(r, col);
+  }
+  render();
+  openPanel(col, startRow);
+}
+
+function changeSlot(row, newCode) {
+  snapshot();
+  const col = curBlock.col;
+  DATA[row][col+1] = newCode;
+  clearCust(row, col);
+  render();
+  curBlock = findBlock(col, row);
+  openPanel(col, row);
+}
+
+function applyBlockText() {
+  const txt = document.getElementById('customText').value;
+  snapshot();
+  const {col, startRow, endRow} = curBlock;
+  for (let r = startRow; r <= endRow; r++) {
+    const k = ck(r, col);
+    if (!CUST[k]) CUST[k] = {};
+    CUST[k].text = txt;
+  }
+  render();
+  openPanel(col, startRow);
+}
+
+function applyBlockIcon(em) {
+  snapshot();
+  const {col, startRow, endRow} = curBlock;
+  for (let r = startRow; r <= endRow; r++) {
+    const k = ck(r, col);
+    if (!CUST[k]) CUST[k] = {};
+    CUST[k].icon = em;
+  }
+  render();
+  openPanel(col, startRow);
+}
+
+// ─────────────────────────────────────────────────
+// 행 추가
+// ─────────────────────────────────────────────────
+function addRow() {
+  const last = DATA[DATA.length-1]?.[0] || '0:00';
+  const [h, m] = last.split(':').map(Number);
+  const nm = m === 0 ? 30 : 0;
+  const nh = nm === 30 ? h : (h+1)%24;
+  const nt = `${nh}:${nm === 0 ? '00' : '30'}`;
+  snapshot();
+  DATA.push([nt,'_','_','_','_','_','_','_']);
+  render();
+}
+
+// ─────────────────────────────────────────────────
+// 저장
+// ─────────────────────────────────────────────────
+function saveHtml() {
+  closePanel();
+  document.getElementById('schedData').textContent = JSON.stringify(DATA);
+  document.getElementById('custData').textContent  = JSON.stringify(CUST);
+  const memo = document.getElementById('memoText');
+  memo.setAttribute('data-saved', memo.value);
+  const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'haram-schedule.html'; a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ─────────────────────────────────────────────────
+// 초기화
+// ─────────────────────────────────────────────────
+const savedMemo = document.getElementById('memoText')?.getAttribute('data-saved');
+if (savedMemo) document.getElementById('memoText').value = savedMemo;
+
+render();
+</script>
+</body>
+</html>
