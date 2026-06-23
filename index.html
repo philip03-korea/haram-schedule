@@ -449,13 +449,25 @@ const DEFAULT_DATA = [
   [ '0:00', 'Z','Z','Z','Z','Z','D','Z'],
 ];
 
-const savedJson = document.getElementById('schedData')?.textContent?.trim();
-const DATA = (savedJson && savedJson.length > 2)
-  ? JSON.parse(savedJson)
-  : DEFAULT_DATA.map(r => [...r]);
+// localStorage → 내장 JSON → 기본값 순서로 로드
+const LS_DATA = 'haram_schedule_data', LS_CUST = 'haram_schedule_cust';
+function lsLoad(key, scriptId, fallback) {
+  try {
+    const ls = localStorage.getItem(key);
+    if (ls) return JSON.parse(ls);
+  } catch(e) {}
+  const sc = document.getElementById(scriptId)?.textContent?.trim();
+  return (sc && sc.length > 2) ? JSON.parse(sc) : fallback;
+}
+const DATA = lsLoad(LS_DATA, 'schedData', DEFAULT_DATA.map(r => [...r]));
+let CUST   = lsLoad(LS_CUST,  'custData',  {});
 
-const savedCust = document.getElementById('custData')?.textContent?.trim();
-let CUST = (savedCust && savedCust.length > 2) ? JSON.parse(savedCust) : {};
+function autoSave() {
+  try {
+    localStorage.setItem(LS_DATA, JSON.stringify(DATA));
+    localStorage.setItem(LS_CUST, JSON.stringify(CUST));
+  } catch(e) {}
+}
 
 // ─────────────────────────────────────────────────
 // 되돌리기
@@ -566,7 +578,10 @@ function durText(n) {
   return h ? h+'시간' : m+'분';
 }
 
+let _firstRender = true;
 function render() {
+  if (!_firstRender) autoSave();
+  _firstRender = false;
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
   const spans = computeSpans();
